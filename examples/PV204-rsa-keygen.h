@@ -1,2 +1,2 @@
 int
-generateKeys(int keylen, int numkeys, int counter);
+generateKeys(FILE *ofile, int keylen, int numkeys, int counter);

@@ -114,12 +114,12 @@ cgt_time_end(void)
 
 /* generateKeys() function was carved out from the main() funtion to
    avoid repetitive code. It generates a given number of keys with a
-   given length and writes information about them to a fixed single
-   CSV file. Therefore its code is also based on rsa-keygen.c, but
-   heavily modified to suit our needs.
+   given length and writes information about them to a given, already
+   open output file. Therefore its code is also based on rsa-keygen.c,
+   but heavily modified to suit our needs.
 */
 int
-generateKeys(int keylen, int numkeys, int counter)
+generateKeys(FILE *ofile, int keylen, int numkeys, int counter)
 {
   struct yarrow256_ctx yarrow;
   struct rsa_public_key pub;
@@ -135,9 +135,6 @@ generateKeys(int keylen, int numkeys, int counter)
       return EXIT_FAILURE;
     }
 
-  /* Open output file */
-  FILE *ofile = fopen("rsaKeys.csv", "w");
-  
   unsigned long long int gentime;
   for ( ; counter <= numkeys; counter++)
   {
@@ -173,8 +170,6 @@ generateKeys(int keylen, int numkeys, int counter)
     rsa_private_key_clear(&priv);
   }
   
-  fclose(ofile);
-  
   return EXIT_SUCCESS;
 }
 
@@ -198,26 +193,31 @@ main(void)
   unsigned int counter = 1;
   int ret = 0;
   
+  /* Open output file */
+  FILE *ofile = fopen("rsaKeys.csv", "w");
+  
   /* Generate 1000000 512 b keys */
-  if ((ret = generateKeys(512, 1000000, counter)) == EXIT_SUCCESS) { }
+  if ((ret = generateKeys(ofile, 512, 1000000, counter)) == EXIT_SUCCESS) { }
   else
   {
     return ret;
   }
   
   /* Generate 10000 1024 b keys */
-  if ((ret = generateKeys(1024, 10000, counter)) == EXIT_SUCCESS) { }
+  if ((ret = generateKeys(ofile, 1024, 10000, counter)) == EXIT_SUCCESS) { }
   else
   {
     return ret;
   }
   
   /* Generate 10000 2048 b keys */
-  if ((ret = generateKeys(2048, 10000, counter)) == EXIT_SUCCESS) { }
+  if ((ret = generateKeys(ofile, 2048, 10000, counter)) == EXIT_SUCCESS) { }
   else
   {
     return ret;
   }
+  
+  fclose(ofile);
   
   return EXIT_SUCCESS;
 }
