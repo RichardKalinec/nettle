@@ -1,0 +1,2 @@
+gcc -I.. -I..  -DHAVE_CONFIG_H -DHAVE_CLOCK_GETTIME -DCLOCK_PROCESS_CPUTIME_ID=CLOCK_MONOTONIC_RAW -g -O2 -ggdb3 -Wall -W   -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes   -Wpointer-arith -Wbad-function-cast -Wnested-externs  -MT PV204-rsa-keygen.o -MD -MP -MF PV204-rsa-keygen.o.d -c PV204-rsa-keygen.c
+gcc -g -O2 -ggdb3 -Wall -W   -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes   -Wpointer-arith -Wbad-function-cast -Wnested-externs -L..  PV204-rsa-keygen.o io.o ../getopt.o ../getopt1.o -lhogweed -lnettle -lgmp  -o PV204-rsa-keygen
