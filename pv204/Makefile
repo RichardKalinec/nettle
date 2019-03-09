@@ -1,6 +1,9 @@
-TARGET=ecdsa-keygen
+TARGET=PV204-keygen
 CPPFLAGS=
-CFLAGS=-O0 -g -Wall  -D_GNU_SOURCE
+CFLAGS=-O0 -g -Wall -W -Wmissing-prototypes -Wmissing-declarations \
+       -Wstrict-prototypes -Wpointer-arith -Wbad-function-cast \
+       -Wnested-externs  -D_GNU_SOURCE \
+       -DCLOCK_PROCESS_CPUTIME_ID=CLOCK_MONOTONIC_RAW
 LDLIBS=-lhogweed -lnettle -lgmp
 LDEXTRAFLAGS=-rdynamic
 CC=gcc
