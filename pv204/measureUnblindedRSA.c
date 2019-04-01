@@ -58,6 +58,9 @@
 // includes added for SHA2 - needed for signing
 #include "nettle/sha2.h"
 
+// needed for pkcs1_rsa_sha256_encode() in measure_compute_root()
+#include "nettle/pkcs1.h"
+
 // defined a prototype for our key generation functions
 #include "measureUnblindedRSA.h" 
 
@@ -153,7 +156,7 @@ measure_to_sexp(struct rsa_public_key* pub, struct rsa_private_key* priv, char* 
   /* Open output file */
   FILE *ofile = fopen(ofile_name, "w");
   
-  struct nettle_buffer *buffer;
+  struct nettle_buffer buffer;
   unsigned long long int gentime;
   
   // Perform NUM_MEASUREMENTS measurements of the function's execution time
@@ -164,7 +167,7 @@ measure_to_sexp(struct rsa_public_key* pub, struct rsa_private_key* priv, char* 
     /* Measure the time before the function execution */
     cgt_time_start();
   
-    if (!rsa_keypair_to_sexp(&buffer, NULL, &pub, &priv))
+    if (!rsa_keypair_to_sexp(&buffer, NULL, pub, priv))
     {
       printf("Formatting private key failed.\n");
       exit(EXIT_FAILURE);
@@ -173,7 +176,7 @@ measure_to_sexp(struct rsa_public_key* pub, struct rsa_private_key* priv, char* 
     /* Measure the time after the function execution */
     gentime = cgt_time_end();
 
-    nettle_buffer_clear(&priv_buffer);
+    nettle_buffer_clear(&buffer);
     
     fprintf(ofile, "%llu\n", gentime);
   }
@@ -299,7 +302,7 @@ measure_decrypt(void *yarrow, struct rsa_public_key* pub, struct rsa_private_key
   unsigned long long int gentime;
   
   mpz_t ciphertext;
-  if (!rsa_encrypt(pub, yarrow, getrandom, data_len, data, ciphertext))
+  if (!rsa_encrypt(pub, yarrow, (void*) getrandom, data_len, data, ciphertext))
   {
     printf("Encrypting the data before decryption failed.\n");
     exit(EXIT_FAILURE);
@@ -373,7 +376,7 @@ main(void)
     data[i] = 0xaa;
   }
   printf("Executing measure_to_sexp() with half HW data and random exponent...\n");
-  measure_to_sexp(&pub, &priv, "measureToSexpRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_to_sexp(&pub, &priv, "measureToSexpRR.txt");
   printf("Executing measure_sign() with half HW data and random exponent...\n");
   measure_sign(&priv, "measureSignRR.txt", data, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_sign_digest() with half HW data and random exponent...\n");
@@ -390,7 +393,7 @@ main(void)
     data0[i] = 0;
   }
   printf("Executing measure_to_sexp() with data consisting of zeroes and random exponent...\n");
-  measure_to_sexp(&pub, &priv, "measureToSexpLR.txt", data0, DEFAULT_KEYSIZE / 8);
+  measure_to_sexp(&pub, &priv, "measureToSexpLR.txt");
   printf("Executing measure_sign() with data consisting of zeroes and random exponent...\n");
   measure_sign(&priv, "measureSignLR.txt", data0, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_sign_digest() with data consisting of zeroes and random exponent...\n");
@@ -407,7 +410,7 @@ main(void)
     data1[i] = 0xff;
   }
   printf("Executing measure_to_sexp() with data consisting of ones and random exponent...\n");
-  measure_to_sexp(&pub, &priv, "measureToSexpHR.txt", data1, DEFAULT_KEYSIZE / 8);
+  measure_to_sexp(&pub, &priv, "measureToSexpHR.txt");
   printf("Executing measure_sign() with data consisting of ones and random exponent...\n");
   measure_sign(&priv, "measureSignHR.txt", data1, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_sign_digest() with data consisting of ones and random exponent...\n");
@@ -421,13 +424,13 @@ main(void)
   rsa_private_key_clear(&priv);
   
   size_t offset = 1;
-  while(true)
+  while(1)
   {
     // Make d, the private exponent with only MSB and LSB set to 1
     uint8_t expl[DEFAULT_KEYSIZE / 8 - offset];
     expl[0] = 0x80;
     expl[DEFAULT_KEYSIZE / 8 - offset - 1] = 1;
-    for (int i = 1; i < DEFAULT_KEYSIZE / 8 - offset - 1; i++)
+    for (size_t i = 1; i < DEFAULT_KEYSIZE / 8 - offset - 1; i++)
     {
       expl[i] = 0;
     }
@@ -459,22 +462,22 @@ main(void)
   }
   // Perform fourth round of measurements
   printf("Executing measure_to_sexp() with half HW data and low HW exponent...\n");
-  measure_to_sexp(&pub, &priv, "measureToSexpRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_to_sexp(&pub, &priv, "measureToSexpRL.txt");
   printf("Executing measure_sign() with half HW data and low HW exponent...\n");
-  measure_sign(&priv, "measureSignRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign(&priv, "measureSignRL.txt", data, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_sign_digest() with half HW data and low HW exponent...\n");
-  measure_sign_digest(&priv, "measureSignDigestRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign_digest(&priv, "measureSignDigestRL.txt", data, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_compute_root() with half HW data and low HW exponent...\n");
-  measure_compute_root(&priv, "measureComputeRootRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_compute_root(&priv, "measureComputeRootRL.txt", data, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_decrypt() with half HW data and low HW exponent...\n");
-  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRL.txt", data, DEFAULT_KEYSIZE / 8);
   
   offset = 1;
-  while(true)
+  while(1)
   {
     // Make d, the private exponent with all bits set to 1
     uint8_t expl[DEFAULT_KEYSIZE / 8 - offset];
-    for (int i = 0; i < DEFAULT_KEYSIZE / 8 - offset; i++)
+    for (size_t i = 0; i < DEFAULT_KEYSIZE / 8 - offset; i++)
     {
       expl[i] = 0xff;
     }
@@ -506,15 +509,15 @@ main(void)
   }
   // Perform fifth round of measurements
   printf("Executing measure_to_sexp() with half HW data and high HW exponent...\n");
-  measure_to_sexp(&pub, &priv, "measureToSexpRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_to_sexp(&pub, &priv, "measureToSexpRH.txt");
   printf("Executing measure_sign() with half HW data and high HW exponent...\n");
-  measure_sign(&priv, "measureSignRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign(&priv, "measureSignRH.txt", data, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_sign_digest() with half HW data and high HW exponent...\n");
-  measure_sign_digest(&priv, "measureSignDigestRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign_digest(&priv, "measureSignDigestRH.txt", data, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_compute_root() with half HW data and high HW exponent...\n");
-  measure_compute_root(&priv, "measureComputeRootRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_compute_root(&priv, "measureComputeRootRH.txt", data, DEFAULT_KEYSIZE / 8);
   printf("Executing measure_decrypt() with half HW data and high HW exponent...\n");
-  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRH.txt", data, DEFAULT_KEYSIZE / 8);
   
   return EXIT_SUCCESS;
 }

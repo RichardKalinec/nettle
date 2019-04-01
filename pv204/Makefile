@@ -1,4 +1,4 @@
-TARGET=PV204-keygen
+TARGETS=PV204-keygen measureUnblindedRSA
 CPPFLAGS=
 CFLAGS=-O0 -g -Wall -W -Wmissing-prototypes -Wmissing-declarations \
        -Wstrict-prototypes -Wpointer-arith -Wbad-function-cast \
@@ -11,12 +11,12 @@ CC=gcc
 SOURCES=$(wildcard *.c)
 OBJECTS=$(SOURCES:.c=.o)
 
-all: $(TARGET)
+all: $(TARGETS)
 
-$(TARGET): $(OBJECTS)
+$(TARGETS): $(OBJECTS)
 	$(CC) -o $@ $^ $(LDLIBS)
 
 clean:
-	rm -f *.o *~ core $(TARGET)
+	rm -f *.o *~ core $(TARGETS)
 
 .PHONY: clean

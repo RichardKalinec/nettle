@@ -1,3 +1,6 @@
+int
+generate_rsa_key(struct rsa_public_key* pub, struct rsa_private_key* priv, void *yarrow);
+
 void
 measure_to_sexp(struct rsa_public_key* pub, struct rsa_private_key* priv, char* ofile_name);
 
