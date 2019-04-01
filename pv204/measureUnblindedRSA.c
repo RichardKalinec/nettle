@@ -372,15 +372,15 @@ main(void)
   {
     data[i] = 0xaa;
   }
-  printf("Executing measure_to_sexp() with random data and exponent...\n");
+  printf("Executing measure_to_sexp() with half HW data and random exponent...\n");
   measure_to_sexp(&pub, &priv, "measureToSexpRR.txt", data, DEFAULT_KEYSIZE / 8);
-  printf("Executing measure_sign() with random data and exponent...\n");
+  printf("Executing measure_sign() with half HW data and random exponent...\n");
   measure_sign(&priv, "measureSignRR.txt", data, DEFAULT_KEYSIZE / 8);
-  printf("Executing measure_sign_digest() with random data and exponent...\n");
+  printf("Executing measure_sign_digest() with half HW data and random exponent...\n");
   measure_sign_digest(&priv, "measureSignDigestRR.txt", data, DEFAULT_KEYSIZE / 8);
-  printf("Executing measure_compute_root() with random data and exponent...\n");
+  printf("Executing measure_compute_root() with half HW data and random exponent...\n");
   measure_compute_root(&priv, "measureComputeRootRR.txt", data, DEFAULT_KEYSIZE / 8);
-  printf("Executing measure_decrypt() with random data and exponent...\n");
+  printf("Executing measure_decrypt() with half HW data and random exponent...\n");
   measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRR.txt", data, DEFAULT_KEYSIZE / 8);
   
   // Perform second round of measurements
@@ -420,11 +420,101 @@ main(void)
   rsa_public_key_clear(&pub);
   rsa_private_key_clear(&priv);
   
+  size_t offset = 1;
+  while(true)
+  {
+    // Make d, the private exponent with only MSB and LSB set to 1
+    uint8_t expl[DEFAULT_KEYSIZE / 8 - offset];
+    expl[0] = 0x80;
+    expl[DEFAULT_KEYSIZE / 8 - offset - 1] = 1;
+    for (int i = 1; i < DEFAULT_KEYSIZE / 8 - offset - 1; i++)
+    {
+      expl[i] = 0;
+    }
+    
+    // Set this d to the private key
+    nettle_mpz_init_set_str_256_u(priv.d, DEFAULT_KEYSIZE / 8 - offset, expl);
+    
+    // Compute e, the public exponent, an inverse of d mod phi(n) = (p - 1) * (q - 1)
+    mpz_t pd;
+    mpz_t qd;
+    mpz_t phin;
+    mpz_sub_ui(pd, priv.p, 1);
+    mpz_sub_ui(qd, priv.q, 1);
+    mpz_mul(phin, pd, qd);
+    if(mpz_invert(pub.e, priv.d, phin) == 0)
+    {
+      // Inversion of d mod phi(n) does not exist, retry for a higher offset
+      offset++;
+      continue;
+    }
+    else
+    {
+      // Inversion exists, it is already set in the public key; now calculate
+      // new values of a and b
+      mpz_mod(priv.a, priv.d, pd);
+      mpz_mod(priv.b, priv.d, qd);
+      break;
+    }
+  }
   // Perform fourth round of measurements
+  printf("Executing measure_to_sexp() with half HW data and low HW exponent...\n");
+  measure_to_sexp(&pub, &priv, "measureToSexpRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_sign() with half HW data and low HW exponent...\n");
+  measure_sign(&priv, "measureSignRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_sign_digest() with half HW data and low HW exponent...\n");
+  measure_sign_digest(&priv, "measureSignDigestRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_compute_root() with half HW data and low HW exponent...\n");
+  measure_compute_root(&priv, "measureComputeRootRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_decrypt() with half HW data and low HW exponent...\n");
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRR.txt", data, DEFAULT_KEYSIZE / 8);
   
-  
+  offset = 1;
+  while(true)
+  {
+    // Make d, the private exponent with all bits set to 1
+    uint8_t expl[DEFAULT_KEYSIZE / 8 - offset];
+    for (int i = 0; i < DEFAULT_KEYSIZE / 8 - offset; i++)
+    {
+      expl[i] = 0xff;
+    }
+    
+    // Set this d to the private key
+    nettle_mpz_init_set_str_256_u(priv.d, DEFAULT_KEYSIZE / 8 - offset, expl);
+    
+    // Compute e, the public exponent, an inverse of d mod phi(n) = (p - 1) * (q - 1)
+    mpz_t pd;
+    mpz_t qd;
+    mpz_t phin;
+    mpz_sub_ui(pd, priv.p, 1);
+    mpz_sub_ui(qd, priv.q, 1);
+    mpz_mul(phin, pd, qd);
+    if(mpz_invert(pub.e, priv.d, phin) == 0)
+    {
+      // Inversion of d mod phi(n) does not exist, retry for a higher offset
+      offset++;
+      continue;
+    }
+    else
+    {
+      // Inversion exists, it is already set in the public key; now calculate
+      // new values of a and b
+      mpz_mod(priv.a, priv.d, pd);
+      mpz_mod(priv.b, priv.d, qd);
+      break;
+    }
+  }
   // Perform fifth round of measurements
-  
+  printf("Executing measure_to_sexp() with half HW data and high HW exponent...\n");
+  measure_to_sexp(&pub, &priv, "measureToSexpRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_sign() with half HW data and high HW exponent...\n");
+  measure_sign(&priv, "measureSignRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_sign_digest() with half HW data and high HW exponent...\n");
+  measure_sign_digest(&priv, "measureSignDigestRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_compute_root() with half HW data and high HW exponent...\n");
+  measure_compute_root(&priv, "measureComputeRootRR.txt", data, DEFAULT_KEYSIZE / 8);
+  printf("Executing measure_decrypt() with half HW data and high HW exponent...\n");
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRR.txt", data, DEFAULT_KEYSIZE / 8);
   
   return EXIT_SUCCESS;
 }
