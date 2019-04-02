@@ -15,7 +15,7 @@ def convert_file_to_array(file):
     return output
 
 
-## This function fills the heat in the range of the minimal to maximal value
+## This function fills the heat in the range of the maximal value
 def fill_heat2(first, second):
     p = convert_file_to_array(first)
     q = convert_file_to_array(second)
@@ -28,7 +28,7 @@ def fill_heat2(first, second):
         maximal = p_max + 1
 
     heat = [[0 for x in range(maximal)] for y in range(maximal)]
-    for x in range(1000000):
+    for x in range(maximal):
         heat[p[x]][q[x]] += 1
 
     return heat
@@ -36,7 +36,7 @@ def fill_heat2(first, second):
 
 ## Draws heatmap
 def draw_heatmap():
-    data = fill_heat2("rsa-all-msb-p.txt", "rsa-all-times-xs.txt")
+    data = fill_heat2(RSA_COMPUTE, RSA_DECRYPT)
     f = plt.figure(1)
     plt.imshow(data, cmap='hot', interpolation='nearest')
     plt.gca().invert_yaxis()
@@ -45,7 +45,7 @@ def draw_heatmap():
     plt.xlabel("Time")
     plt.ylabel("MSB P")
     f.show()
-    f.savefig('heatmap-msb-p-vs-time-all.png')
+    #f.savefig('heatmap-msb-p-vs-time-all.png')
 
 
 ## Draws histograms
@@ -70,4 +70,5 @@ def numpy_hist_txt():
 
 
 if __name__ == '__main__':
-    numpy_hist_txt()
+    #numpy_hist_txt()
+    draw_heatmap()
