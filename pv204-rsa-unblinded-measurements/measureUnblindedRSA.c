@@ -65,8 +65,9 @@
 #include "measureUnblindedRSA.h" 
 
 #define DEFAULT_KEYSIZE 2048
+#define DATA_LEN (DEFAULT_KEYSIZE / 16)
 #define ESIZE 30
-#define NUM_MEASUREMENTS 10
+#define NUM_MEASUREMENTS 1000000
 
 static void
 progress(void *ctx, int c)
@@ -197,6 +198,7 @@ measure_sign(struct rsa_private_key* priv, char* ofile_name, uint8_t* data, size
   sha256_update(&hash_ctx, data_len, data);
   
   mpz_t signature;
+  mpz_init(signature);
   
   // Perform NUM_MEASUREMENTS measurements of the function's execution time
   for (int i = 0; i < NUM_MEASUREMENTS; i++)
@@ -215,6 +217,8 @@ measure_sign(struct rsa_private_key* priv, char* ofile_name, uint8_t* data, size
     
     fprintf(ofile, "%llu\n", gentime);
   }
+  
+  mpz_clear(signature);
 
   fclose(ofile);
 }
@@ -234,6 +238,7 @@ measure_sign_digest(struct rsa_private_key* priv, char* ofile_name, uint8_t* dat
   sha256_digest(&hash_ctx, SHA256_DIGEST_SIZE, digest);
   
   mpz_t signature;
+  mpz_init(signature);
   
   // Perform NUM_MEASUREMENTS measurements of the function's execution time
   for (int i = 0; i < NUM_MEASUREMENTS; i++)
@@ -252,6 +257,8 @@ measure_sign_digest(struct rsa_private_key* priv, char* ofile_name, uint8_t* dat
     
     fprintf(ofile, "%llu\n", gentime);
   }
+  
+  mpz_clear(signature);
 
   fclose(ofile);
 }
@@ -269,6 +276,7 @@ measure_compute_root(struct rsa_private_key* priv, char* ofile_name, uint8_t* da
   sha256_update(&hash_ctx, data_len, data);
   
   mpz_t signature;
+  mpz_init(signature);
   
   if (!pkcs1_rsa_sha256_encode(signature, priv->size, &hash_ctx))
   {
@@ -289,6 +297,8 @@ measure_compute_root(struct rsa_private_key* priv, char* ofile_name, uint8_t* da
     
     fprintf(ofile, "%llu\n", gentime);
   }
+  
+  mpz_clear(signature);
 
   fclose(ofile);
 }
@@ -302,13 +312,14 @@ measure_decrypt(void *yarrow, struct rsa_public_key* pub, struct rsa_private_key
   unsigned long long int gentime;
   
   mpz_t ciphertext;
-  if (!rsa_encrypt(pub, yarrow, (void*) getrandom, data_len, data, ciphertext))
+  mpz_init(ciphertext);
+  if (!rsa_encrypt(pub, yarrow, (nettle_random_func *) yarrow256_random, data_len, data, ciphertext))
   {
     printf("Encrypting the data before decryption failed.\n");
     exit(EXIT_FAILURE);
   }
-  size_t data_length = DEFAULT_KEYSIZE / 8;
-  uint8_t decrypted_data[DEFAULT_KEYSIZE / 8];
+  size_t data_length = DATA_LEN;
+  uint8_t decrypted_data[DATA_LEN];
   
   // Perform NUM_MEASUREMENTS measurements of the function's execution time
   for (int i = 0; i < NUM_MEASUREMENTS; i++)
@@ -327,6 +338,8 @@ measure_decrypt(void *yarrow, struct rsa_public_key* pub, struct rsa_private_key
     
     fprintf(ofile, "%llu\n", gentime);
   }
+  
+  mpz_clear(ciphertext);
 
   fclose(ofile);
 }
@@ -369,82 +382,128 @@ main(void)
     return EXIT_FAILURE;
   }
   
-  // Perform first round of measurements
-  uint8_t data[DEFAULT_KEYSIZE / 8];
-  for (int i = 0; i < DEFAULT_KEYSIZE / 8; i++)
+  printf("First round of measurements:\n");
+  uint8_t data[DATA_LEN];
+  for (int i = 0; i < DATA_LEN; i++)
   {
     data[i] = 0xaa;
   }
   printf("Executing measure_to_sexp() with half HW data and random exponent...\n");
   measure_to_sexp(&pub, &priv, "measureToSexpRR.txt");
   printf("Executing measure_sign() with half HW data and random exponent...\n");
-  measure_sign(&priv, "measureSignRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign(&priv, "measureSignRR.txt", data, DATA_LEN);
   printf("Executing measure_sign_digest() with half HW data and random exponent...\n");
-  measure_sign_digest(&priv, "measureSignDigestRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign_digest(&priv, "measureSignDigestRR.txt", data, DATA_LEN);
   printf("Executing measure_compute_root() with half HW data and random exponent...\n");
-  measure_compute_root(&priv, "measureComputeRootRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_compute_root(&priv, "measureComputeRootRR.txt", data, DATA_LEN);
   printf("Executing measure_decrypt() with half HW data and random exponent...\n");
-  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRR.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRR.txt", data, DATA_LEN);
   
-  // Perform second round of measurements
-  uint8_t data0[DEFAULT_KEYSIZE / 8];
-  for (int i = 0; i < DEFAULT_KEYSIZE / 8; i++)
+  printf("Second round of measurements:\n");
+  uint8_t data0[DATA_LEN];
+  for (int i = 0; i < DATA_LEN; i++)
   {
     data0[i] = 0;
   }
   printf("Executing measure_to_sexp() with data consisting of zeroes and random exponent...\n");
   measure_to_sexp(&pub, &priv, "measureToSexpLR.txt");
   printf("Executing measure_sign() with data consisting of zeroes and random exponent...\n");
-  measure_sign(&priv, "measureSignLR.txt", data0, DEFAULT_KEYSIZE / 8);
+  measure_sign(&priv, "measureSignLR.txt", data0, DATA_LEN);
   printf("Executing measure_sign_digest() with data consisting of zeroes and random exponent...\n");
-  measure_sign_digest(&priv, "measureSignDigestLR.txt", data0, DEFAULT_KEYSIZE / 8);
+  measure_sign_digest(&priv, "measureSignDigestLR.txt", data0, DATA_LEN);
   printf("Executing measure_compute_root() with data consisting of zeroes and random exponent...\n");
-  measure_compute_root(&priv, "measureComputeRootLR.txt", data0, DEFAULT_KEYSIZE / 8);
+  measure_compute_root(&priv, "measureComputeRootLR.txt", data0, DATA_LEN);
   printf("Executing measure_decrypt() with data consisting of zeroes and random exponent...\n");
-  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptLR.txt", data0, DEFAULT_KEYSIZE / 8);
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptLR.txt", data0, DATA_LEN);
   
-  // Perform third round of measurements
-  uint8_t data1[DEFAULT_KEYSIZE / 8];
-  for (int i = 0; i < DEFAULT_KEYSIZE / 8; i++)
+  printf("Third round of measurements:\n");
+  uint8_t data1[DATA_LEN];
+  for (int i = 0; i < DATA_LEN; i++)
   {
     data1[i] = 0xff;
   }
   printf("Executing measure_to_sexp() with data consisting of ones and random exponent...\n");
   measure_to_sexp(&pub, &priv, "measureToSexpHR.txt");
   printf("Executing measure_sign() with data consisting of ones and random exponent...\n");
-  measure_sign(&priv, "measureSignHR.txt", data1, DEFAULT_KEYSIZE / 8);
+  measure_sign(&priv, "measureSignHR.txt", data1, DATA_LEN);
   printf("Executing measure_sign_digest() with data consisting of ones and random exponent...\n");
-  measure_sign_digest(&priv, "measureSignDigestHR.txt", data1, DEFAULT_KEYSIZE / 8);
+  measure_sign_digest(&priv, "measureSignDigestHR.txt", data1, DATA_LEN);
   printf("Executing measure_compute_root() with data consisting of ones and random exponent...\n");
-  measure_compute_root(&priv, "measureComputeRootHR.txt", data1, DEFAULT_KEYSIZE / 8);
+  measure_compute_root(&priv, "measureComputeRootHR.txt", data1, DATA_LEN);
   printf("Executing measure_decrypt() with data consisting of ones and random exponent...\n");
-  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptHR.txt", data1, DEFAULT_KEYSIZE / 8);  
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptHR.txt", data1, DATA_LEN);
   
-  rsa_public_key_clear(&pub);
-  rsa_private_key_clear(&priv);
+  // Compute phi(n) for use for computation of inversion of d
+  mpz_t pd;
+  mpz_t qd;
+  mpz_t phin;
+  mpz_init(pd);
+  mpz_init(qd);
+  mpz_init(phin);
+  mpz_sub_ui(pd, priv.p, 1);
+  mpz_sub_ui(qd, priv.q, 1);
+  mpz_mul(phin, pd, qd);
   
+  printf("Preparing keys with low HW exponent...\n");
   size_t offset = 1;
-  while(1)
+  while(offset < 2048)
   {
     // Make d, the private exponent with only MSB and LSB set to 1
-    uint8_t expl[DEFAULT_KEYSIZE / 8 - offset];
-    expl[0] = 0x80;
-    expl[DEFAULT_KEYSIZE / 8 - offset - 1] = 1;
-    for (size_t i = 1; i < DEFAULT_KEYSIZE / 8 - offset - 1; i++)
+    uint8_t expl[DEFAULT_KEYSIZE / 8 - (offset / 8)];
+    if((DEFAULT_KEYSIZE / 8 - (offset / 8)) > 1)
+    {
+      switch(offset % 8)
+      {
+        case 0: expl[0] = 0x80;
+                break;
+        case 1: expl[0] = 0x40;
+                break;
+        case 2: expl[0] = 0x20;
+                break;
+        case 3: expl[0] = 0x10;
+                break;
+        case 4: expl[0] = 0x8;
+                break;
+        case 5: expl[0] = 0x4;
+                break;
+        case 6: expl[0] = 0x2;
+                break;
+        case 7: expl[0] = 0x1;
+                break;
+      }
+      expl[DEFAULT_KEYSIZE / 8 - (offset / 8) - 1] = 1;
+    }
+    else
+    {
+      switch(offset % 8)
+      {
+        case 0: expl[0] = 0x81;
+                break;
+        case 1: expl[0] = 0x41;
+                break;
+        case 2: expl[0] = 0x21;
+                break;
+        case 3: expl[0] = 0x11;
+                break;
+        case 4: expl[0] = 0x9;
+                break;
+        case 5: expl[0] = 0x5;
+                break;
+        case 6: expl[0] = 0x3;
+                break;
+        case 7: expl[0] = 0x1;
+                break;
+      }
+    }
+    for (size_t i = 1; i < DEFAULT_KEYSIZE / 8 - (offset / 8) - 1; i++)
     {
       expl[i] = 0;
     }
     
     // Set this d to the private key
-    nettle_mpz_init_set_str_256_u(priv.d, DEFAULT_KEYSIZE / 8 - offset, expl);
+    nettle_mpz_set_str_256_u(priv.d, DEFAULT_KEYSIZE / 8 - offset, expl);
     
     // Compute e, the public exponent, an inverse of d mod phi(n) = (p - 1) * (q - 1)
-    mpz_t pd;
-    mpz_t qd;
-    mpz_t phin;
-    mpz_sub_ui(pd, priv.p, 1);
-    mpz_sub_ui(qd, priv.q, 1);
-    mpz_mul(phin, pd, qd);
     if(mpz_invert(pub.e, priv.d, phin) == 0)
     {
       // Inversion of d mod phi(n) does not exist, retry for a higher offset
@@ -460,38 +519,57 @@ main(void)
       break;
     }
   }
-  // Perform fourth round of measurements
+  if (offset == 2048)
+  {
+    printf("Did not find an inversion for d!\n");
+    return EXIT_FAILURE;
+  }
+  printf("Fourth round of measurements:\n");
   printf("Executing measure_to_sexp() with half HW data and low HW exponent...\n");
   measure_to_sexp(&pub, &priv, "measureToSexpRL.txt");
   printf("Executing measure_sign() with half HW data and low HW exponent...\n");
-  measure_sign(&priv, "measureSignRL.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign(&priv, "measureSignRL.txt", data, DATA_LEN);
   printf("Executing measure_sign_digest() with half HW data and low HW exponent...\n");
-  measure_sign_digest(&priv, "measureSignDigestRL.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign_digest(&priv, "measureSignDigestRL.txt", data, DATA_LEN);
   printf("Executing measure_compute_root() with half HW data and low HW exponent...\n");
-  measure_compute_root(&priv, "measureComputeRootRL.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_compute_root(&priv, "measureComputeRootRL.txt", data, DATA_LEN);
   printf("Executing measure_decrypt() with half HW data and low HW exponent...\n");
-  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRL.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRL.txt", data, DATA_LEN);
   
-  offset = 1;
-  while(1)
+  printf("Preparing keys with high HW exponent...\n");
+  offset = 0;
+  while(offset < 2048)
   {
     // Make d, the private exponent with all bits set to 1
-    uint8_t expl[DEFAULT_KEYSIZE / 8 - offset];
-    for (size_t i = 0; i < DEFAULT_KEYSIZE / 8 - offset; i++)
+    uint8_t expl[DEFAULT_KEYSIZE / 8 - (offset / 8)];
+    switch(offset % 8)
+    {
+      case 0: expl[0] = 0xff;
+              break;
+      case 1: expl[0] = 0x7f;
+              break;
+      case 2: expl[0] = 0x3f;
+              break;
+      case 3: expl[0] = 0x1f;
+              break;
+      case 4: expl[0] = 0xf;
+              break;
+      case 5: expl[0] = 0x7;
+              break;
+      case 6: expl[0] = 0x3;
+              break;
+      case 7: expl[0] = 0x1;
+              break;
+    }
+    for (size_t i = 1; i < DEFAULT_KEYSIZE / 8 - offset; i++)
     {
       expl[i] = 0xff;
     }
     
     // Set this d to the private key
-    nettle_mpz_init_set_str_256_u(priv.d, DEFAULT_KEYSIZE / 8 - offset, expl);
+    nettle_mpz_set_str_256_u(priv.d, DEFAULT_KEYSIZE / 8 - offset, expl);
     
     // Compute e, the public exponent, an inverse of d mod phi(n) = (p - 1) * (q - 1)
-    mpz_t pd;
-    mpz_t qd;
-    mpz_t phin;
-    mpz_sub_ui(pd, priv.p, 1);
-    mpz_sub_ui(qd, priv.q, 1);
-    mpz_mul(phin, pd, qd);
     if(mpz_invert(pub.e, priv.d, phin) == 0)
     {
       // Inversion of d mod phi(n) does not exist, retry for a higher offset
@@ -507,17 +585,28 @@ main(void)
       break;
     }
   }
-  // Perform fifth round of measurements
+  if (offset == 2048)
+  {
+    printf("Did not find an inversion for d!\n");
+    return EXIT_FAILURE;
+  }
+  printf("Fifth round of measurements:\n");
   printf("Executing measure_to_sexp() with half HW data and high HW exponent...\n");
   measure_to_sexp(&pub, &priv, "measureToSexpRH.txt");
   printf("Executing measure_sign() with half HW data and high HW exponent...\n");
-  measure_sign(&priv, "measureSignRH.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign(&priv, "measureSignRH.txt", data, DATA_LEN);
   printf("Executing measure_sign_digest() with half HW data and high HW exponent...\n");
-  measure_sign_digest(&priv, "measureSignDigestRH.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_sign_digest(&priv, "measureSignDigestRH.txt", data, DATA_LEN);
   printf("Executing measure_compute_root() with half HW data and high HW exponent...\n");
-  measure_compute_root(&priv, "measureComputeRootRH.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_compute_root(&priv, "measureComputeRootRH.txt", data, DATA_LEN);
   printf("Executing measure_decrypt() with half HW data and high HW exponent...\n");
-  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRH.txt", data, DEFAULT_KEYSIZE / 8);
+  measure_decrypt(&yarrow, &pub, &priv, "measureDecryptRH.txt", data, DATA_LEN);  
+  
+  rsa_public_key_clear(&pub);
+  rsa_private_key_clear(&priv);
+  mpz_clear(pd);
+  mpz_clear(qd);
+  mpz_clear(phin);
   
   return EXIT_SUCCESS;
 }
