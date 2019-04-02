@@ -3,9 +3,6 @@ import matplotlib.pyplot as plt
 
 RSA_COMPUTE = "rsa_copmute_root_times_microseconds.txt"
 RSA_DECRYPT = "rsa_decrypt_times_microseconds.txt"
-TIME = "randsc_pmul_times.txt"
-MSB = "randsc_pmul_msb.txt"
-MS = "randsc_pmul_ms.txt"
 
 
 ## Takes files as an input and converts to array
@@ -18,47 +15,37 @@ def convert_file_to_array(file):
     return output
 
 
-def convert_ns_to_ms(filename, output):
-    out = open(output, "w")
-    with open(filename) as file:
-        for row in file:
-            if int(row) > 300000:
-                row = int(row) // 10000
-            out.write(str(int(row)//100) + "\n")
-
-    out.close()
-
-
 ## This function fills the heat in the range of the maximal value
 def fill_heat2(first, second):
     p = convert_file_to_array(first)
     q = convert_file_to_array(second)
     p_max = max(p)
     q_max = max(q)
+
     if q_max >= p_max:
         maximal = q_max + 1
     else:
         maximal = p_max + 1
-    print(maximal)
+
     heat = [[0 for x in range(maximal)] for y in range(maximal)]
-    for x in range(10000):
-        print(p[x])
+    for x in range(maximal):
         heat[p[x]][q[x]] += 1
+
     return heat
 
 
 ## Draws heatmap
 def draw_heatmap():
-    data = fill_heat2(MS, MSB)
+    data = fill_heat2(RSA_COMPUTE, RSA_DECRYPT)
     f = plt.figure(1)
     plt.imshow(data, cmap='hot', interpolation='nearest')
     plt.gca().invert_yaxis()
-    plt.ylim([1250, 1500])
-    plt.xlim([0, 270])
-    plt.ylabel("Time in nanoseconds/100")
-    plt.xlabel("MSB")
+    plt.ylim([175, 300])
+    plt.xlim([0, 400])
+    plt.xlabel("Time")
+    plt.ylabel("MSB P")
     f.show()
-    f.savefig('heatmap-msb-vs-time-ecc.png')
+    #f.savefig('heatmap-msb-p-vs-time-all.png')
 
 
 ## Draws histograms
@@ -76,7 +63,7 @@ def numpy_hist_txt():
     #plt.xlabel('TIME in microseconds')
     # plt.title('RSA DECRYPT TIME')
     #plt.legend()
-    plt.savefig("rsa_decrypt_times_nanoseconds.png")
+    plt.savefig("rsa_decrypt_times_microseconds.png")
     plt.show()
 
 
