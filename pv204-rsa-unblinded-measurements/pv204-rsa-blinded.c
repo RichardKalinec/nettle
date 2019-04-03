@@ -844,117 +844,120 @@ main (int argc, char **argv)
   time_init();
   printf ("%16s %4s %9s %9s\n",
 	  "name", "size", "sign/ms", "verify/ms");
-  for (int i =0; i<100000; i++) {
-  	struct rsa_ctx *ctx = bench_rsa_init(2048);
-	struct sha256_ctx hash_ctx;
-	sha256_init(&hash_ctx);
-  	mpz_t s;
-  	mpz_init (s);
-	// Compute phi(n) for use for computation of inversion of d
-  mpz_t pd;
-  mpz_t qd;
-  mpz_t phin;
-  mpz_init(pd);
-  mpz_init(qd);
-  mpz_init(phin);
-  mpz_sub_ui(pd, &ctx->key.p, 1);
-  mpz_sub_ui(qd, &ctx->key.p, 1);
-  mpz_mul(phin, pd, qd);
-  
-  printf("Preparing keys with low HW exponent...\n");
-  size_t offset = 1;
-  while(offset < 2048)
+  for (int i =0; i<100000; i++)
   {
-    // Make d, the private exponent with only MSB and LSB set to 1
-    uint8_t expl[DEFAULT_KEYSIZE / 8 - (offset / 8)];
-    if((DEFAULT_KEYSIZE / 8 - (offset / 8)) > 1)
+    struct rsa_ctx *ctx = bench_rsa_init(2048);
+    struct sha256_ctx hash_ctx;
+    sha256_init(&hash_ctx);
+    mpz_t s;
+    mpz_init(s);
+    
+    // Compute phi(n) for use for computation of inversion of d
+    mpz_t pd;
+    mpz_t qd;
+    mpz_t phin;
+    mpz_init(pd);
+    mpz_init(qd);
+    mpz_init(phin);
+    mpz_sub_ui(pd, &ctx->key.p, 1);
+    mpz_sub_ui(qd, &ctx->key.p, 1);
+    mpz_mul(phin, pd, qd);
+
+    printf("Preparing keys with low HW exponent...\n");
+    size_t offset = 1;
+    while(offset < 2048)
     {
-      switch(offset % 8)
+      // Make d, the private exponent with only MSB and LSB set to 1
+      uint8_t expl[DEFAULT_KEYSIZE / 8 - (offset / 8)];
+      if((DEFAULT_KEYSIZE / 8 - (offset / 8)) > 1)
       {
-        case 0: expl[0] = 0x80;
-                break;
-        case 1: expl[0] = 0x40;
-                break;
-        case 2: expl[0] = 0x20;
-                break;
-        case 3: expl[0] = 0x10;
-                break;
-        case 4: expl[0] = 0x8;
-                break;
-        case 5: expl[0] = 0x4;
-                break;
-        case 6: expl[0] = 0x2;
-                break;
-        case 7: expl[0] = 0x1;
-                break;
+        switch(offset % 8)
+        {
+          case 0: expl[0] = 0x80;
+                  break;
+          case 1: expl[0] = 0x40;
+                  break;
+          case 2: expl[0] = 0x20;
+                  break;
+          case 3: expl[0] = 0x10;
+                  break;
+          case 4: expl[0] = 0x8;
+                  break;
+          case 5: expl[0] = 0x4;
+                  break;
+          case 6: expl[0] = 0x2;
+                  break;
+          case 7: expl[0] = 0x1;
+                  break;
+        }
+        expl[DEFAULT_KEYSIZE / 8 - (offset / 8) - 1] = 1;
       }
-      expl[DEFAULT_KEYSIZE / 8 - (offset / 8) - 1] = 1;
-    }
-    else
-    {
-      switch(offset % 8)
+      else
       {
-        case 0: expl[0] = 0x81;
-                break;
-        case 1: expl[0] = 0x41;
-                break;
-        case 2: expl[0] = 0x21;
-                break;
-        case 3: expl[0] = 0x11;
-                break;
-        case 4: expl[0] = 0x9;
-                break;
-        case 5: expl[0] = 0x5;
-                break;
-        case 6: expl[0] = 0x3;
-                break;
-        case 7: expl[0] = 0x1;
-                break;
+        switch(offset % 8)
+        {
+          case 0: expl[0] = 0x81;
+                  break;
+          case 1: expl[0] = 0x41;
+                  break;
+          case 2: expl[0] = 0x21;
+                  break;
+          case 3: expl[0] = 0x11;
+                  break;
+          case 4: expl[0] = 0x9;
+                  break;
+          case 5: expl[0] = 0x5;
+                  break;
+          case 6: expl[0] = 0x3;
+                  break;
+          case 7: expl[0] = 0x1;
+                  break;
+        }
+      }
+      for (size_t i = 1; i < DEFAULT_KEYSIZE / 8 - (offset / 8) - 1; i++)
+      {
+        expl[i] = 0;
+      }
+
+      // Set this d to the private key
+      nettle_mpz_set_str_256_u(&ctx->key.p, DEFAULT_KEYSIZE / 8 - offset, expl);
+
+      // Compute e, the public exponent, an inverse of d mod phi(n) = (p - 1) * (q - 1)
+      if(mpz_invert(&ctx->pub.e, &ctx->key.p, phin) == 0)
+      {
+        // Inversion of d mod phi(n) does not exist, retry for a higher offset
+        offset++;
+        continue;
+      }
+      else
+      {
+        // Inversion exists, it is already set in the public key; now calculate
+        // new values of a and b
+        mpz_mod(&ctx->key.a, &ctx->key.d, pd);
+        mpz_mod(&ctx->key.b, &ctx->key.d, qd);
+        break;
       }
     }
-    for (size_t i = 1; i < DEFAULT_KEYSIZE / 8 - (offset / 8) - 1; i++)
+    if (offset == 2048)
     {
-      expl[i] = 0;
+      printf("Did not find an inversion for d!\n");
+      return EXIT_FAILURE;
     }
     
-    // Set this d to the private key
-    nettle_mpz_set_str_256_u(&ctx->key.p, DEFAULT_KEYSIZE / 8 - offset, expl);
-    
-    // Compute e, the public exponent, an inverse of d mod phi(n) = (p - 1) * (q - 1)
-    if(mpz_invert(&ctx->pub.e, &ctx->key.p, phin) == 0)
-    {
-      // Inversion of d mod phi(n) does not exist, retry for a higher offset
-      offset++;
-      continue;
-    }
-    else
-    {
-      // Inversion exists, it is already set in the public key; now calculate
-      // new values of a and b
-      mpz_mod(&ctx->key.a, &ctx->key.d, pd);
-      mpz_mod(&ctx->key.b, &ctx->key.d, qd);
-      break;
-    }
-  }
-  if (offset == 2048)
-  {
-    printf("Did not find an inversion for d!\n");
-    return EXIT_FAILURE;
-}
-	cgt_time_start();
+    cgt_time_start();
 /*
-  	rsa_sha256_sign_digest_tr (&ctx->pub, &ctx->key,
+    rsa_sha256_sign_digest_tr (&ctx->pub, &ctx->key,
 			    &ctx->lfib, (nettle_random_func *)knuth_lfib_random,
 			     ctx->digest, s);
-	cgt_time_end();
+    cgt_time_end();
 */
-	cgt_time_start();
-	rsa_sha256_sign_tr (&ctx->pub, &ctx->key,
-			     &ctx->lfib, (nettle_random_func *)knuth_lfib_random,
-			     &hash_ctx, s);
-	cgt_time_end();
+    cgt_time_start();
+    rsa_sha256_sign_tr (&ctx->pub, &ctx->key,
+    		     &ctx->lfib, (nettle_random_func *)knuth_lfib_random,
+    		     &hash_ctx, s);
+    cgt_time_end();
 
-  	mpz_clear (s);
+    mpz_clear (s);
   }
 
   if (!filter || strstr("curve25519", filter))
