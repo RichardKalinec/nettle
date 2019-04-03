@@ -1,4 +1,4 @@
-TARGET=pv204-rsa-blinded
+TARGET=measureBlindedRSA
 CPPFLAGS=
 CFLAGS=-O0 -g -Wall -W -Wmissing-prototypes -Wmissing-declarations \
        -Wstrict-prototypes -Wpointer-arith -Wbad-function-cast \
