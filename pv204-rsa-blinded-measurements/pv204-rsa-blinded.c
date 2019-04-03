@@ -943,25 +943,30 @@ main (int argc, char **argv)
       printf("Did not find an inversion for d!\n");
       return EXIT_FAILURE;
     }
-    
+/*    
     cgt_time_start();
-/*
+
     rsa_sha256_sign_digest_tr (&ctx->pub, &ctx->key,
-			    &ctx->lfib, (nettle_random_func *)knuth_lfib_random,
+			     &ctx->lfib, (nettle_random_func *)knuth_lfib_random,
 			     ctx->digest, s);
     cgt_time_end();
 */
     cgt_time_start();
+    
     rsa_sha256_sign_tr (&ctx->pub, &ctx->key,
     		     &ctx->lfib, (nettle_random_func *)knuth_lfib_random,
     		     &hash_ctx, s);
     cgt_time_end();
 
-    mpz_clear (s);
+    mpz_clear(s);
   }
 
   if (!filter || strstr("curve25519", filter))
     bench_curve25519();
+    
+  mpz_clear(pd);
+  mpz_clear(qd);
+  mpz_clear(phin);
 
   return EXIT_SUCCESS;
 }
