@@ -1,3 +1,8 @@
+/* Taken by Filip Gontko from  and subsequently modified to suit our needs.
+   Originally containing only functionality for keypair generation, signing and
+   verification, Richard Kalinec added functions for encryption and decryption.
+   It contains only functions for RSA operations.
+*/
 #pragma once
 #include "stdafx.h"
 #include <list>
