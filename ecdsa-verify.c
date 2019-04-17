@@ -43,6 +43,25 @@
 #include "gmp-glue.h"
 
 int
+ecdsa_verify_pkcs11(CK_OBJECT_HANDLE pub, 
+      CK_SESSION_HANDLE session,
+      size_t digest_length, uint8_t *digest,
+	    CK_BYTE *signature)
+{
+  CK_RV ret;
+  CK_MECHANISM mechanism = { CKM_ECDSA, NULL_PTR, 0 };
+  CK_ULONG signature_length = SIG_LEN;
+
+  ret = C_VerifyInit(session, &mechanism, pub);
+  check_return_value_pkcs11(ret, "C_VerifyInit()");
+
+  ret = C_Verify(session, digest, digest_length, signature, signature_length);
+  check_return_value_pkcs11(ret, "C_Verify()");
+
+  return (ret == CKR_OK) ? 1 : 0;
+}
+
+int
 ecdsa_verify (const struct ecc_point *pub,
 	      size_t length, const uint8_t *digest,
 	      const struct dsa_signature *signature)

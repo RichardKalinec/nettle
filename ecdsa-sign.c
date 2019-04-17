@@ -43,6 +43,24 @@
 #include "nettle-internal.h"
 
 void
+ecdsa_sign_pkcs11 (CK_OBJECT_HANDLE key, 
+      CK_SESSION_HANDLE session, 
+      size_t digest_length, 
+      uint8_t *digest, 
+      CK_BYTE *signature)
+{
+  CK_RV ret;
+  CK_MECHANISM mechanism = { CKM_ECDSA, NULL_PTR, 0 };
+  CK_ULONG signature_length = SIG_LEN;
+
+  ret = C_SignInit(session, &mechanism, key);
+  check_return_value_pkcs11(ret, "C_SignInit()");
+
+  ret = C_Sign(session, digest, digest_length, signature, &signature_length);
+  check_return_value_pkcs11(ret, "C_Sign()");
+}
+
+void
 ecdsa_sign (const struct ecc_scalar *key,
 	    void *random_ctx, nettle_random_func *random,
 	    size_t digest_length,

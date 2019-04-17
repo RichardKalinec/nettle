@@ -43,6 +43,47 @@
 #include "nettle-internal.h"
 
 void
+ecdsa_generate_keypair_pkcs11 (CK_OBJECT_HANDLE_PTR pubkey, 
+      CK_OBJECT_HANDLE_PTR privkey, CK_SESSION_HANDLE session)
+{
+  CK_BBOOL ctrue  = CK_TRUE;
+  CK_BBOOL cfalse = CK_FALSE;
+
+  // Missing mechanism to establish ECC parameters based on a curve
+  CK_BYTE params[] = {1};
+
+  CK_OBJECT_CLASS pub_class = CKO_PUBLIC_KEY;
+  CK_KEY_TYPE key_type = CKK_EC;
+  CK_ATTRIBUTE pub_template[] = {
+    {CKA_CLASS, &pub_class, sizeof(pub_class)},
+    {CKA_KEY_TYPE, &key_type, sizeof(key_type)},
+    {CKA_TOKEN, &ctrue, sizeof(ctrue)},
+    {CKA_EC_PARAMS, params, sizeof(params)},
+    {CKA_VERIFY, &ctrue, sizeof(ctrue)}
+  };
+
+  CK_OBJECT_CLASS priv_class = CKO_PRIVATE_KEY;
+  CK_ATTRIBUTE priv_template[] = {
+    {CKA_EXTRACTABLE, &cfalse, sizeof(cfalse)},
+    {CKA_CLASS, &priv_class, sizeof(priv_class)},
+    {CKA_KEY_TYPE, &key_type, sizeof(key_type)},
+    {CKA_TOKEN, &ctrue, sizeof(ctrue)},
+    {CKA_SENSITIVE, &ctrue, sizeof(ctrue)},
+    {CKA_DERIVE, &ctrue, sizeof(ctrue)},
+    {CKA_EC_PARAMS, params, sizeof(params)}
+  };
+
+  CK_RV ret;
+  CK_MECHANISM mechanism = { CKM_EC_KEY_PAIR_GEN, NULL_PTR, 0 };
+
+  ret = C_GenerateKeyPair(session, &mechanism,
+                          pub_template, sizeof(pub_template)/sizeof(pub_template[0]),
+                          priv_template, sizeof(priv_template)/sizeof(priv_template[0]),
+                          pubkey, privkey);
+  check_return_value_pkcs11(ret, "C_GenerateKeyPair()");
+}
+
+void
 ecdsa_generate_keypair (struct ecc_point *pub,
 			struct ecc_scalar *key,
 			void *random_ctx, nettle_random_func *random)

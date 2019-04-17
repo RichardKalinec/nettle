@@ -36,6 +36,7 @@
 
 #include "ecc.h"
 #include "dsa.h"
+#include "pkcs11-util.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,6 +55,23 @@ extern "C" {
  *
  * A public key is represented as a struct ecc_point, and a private
  * key as a struct ecc_scalar. FIXME: Introduce some aliases? */
+void
+ecdsa_sign_pkcs11 (CK_OBJECT_HANDLE key, 
+      CK_SESSION_HANDLE session, 
+      size_t digest_length, 
+      uint8_t *digest, 
+      CK_BYTE *signature);
+
+int
+ecdsa_verify_pkcs11(CK_OBJECT_HANDLE pub, 
+      CK_SESSION_HANDLE session,
+      size_t digest_length, uint8_t *digest,
+	    CK_BYTE *signature);
+
+void
+ecdsa_generate_keypair_pkcs11 (CK_OBJECT_HANDLE_PTR pubkey, 
+      CK_OBJECT_HANDLE_PTR privkey, CK_SESSION_HANDLE session);
+
 void
 ecdsa_sign (const struct ecc_scalar *key,
 	    void *random_ctx, nettle_random_func *random,
