@@ -104,13 +104,117 @@ static CK_BBOOL falsevalue = FALSE;
 static CK_ULONG modulusbits = 1024;
 static CK_BYTE public_exponent[] = {3};
 
-boolean_t GetMySlot(CK_MECHANISM_TYPE sv_mech, CK_MECHANISM_TYPE kpgen_mech,
-    CK_SLOT_ID_PTR pslot);
+/* Find a slot capable of:
+ * . signing and verifying with sv_mech
+ * . generating a key pair with kpgen_mech
+ * Returns B_TRUE when successful. */
+boolean_t GetKGSVSlot(CK_MECHANISM_TYPE sv_mech, CK_MECHANISM_TYPE kpgen_mech,
+    CK_SLOT_ID_PTR pSlotID)
+{
+	CK_SLOT_ID_PTR pSlotList = NULL_PTR;
+	CK_SLOT_ID SlotID;
+	CK_ULONG ulSlotCount = 0;
+	CK_MECHANISM_INFO mech_info;
+	int i;
+	boolean_t returnval = B_FALSE;
+
+	if ((m_pkcs11Mngr.C_GetSlotList(0, NULL_PTR, &ulSlotCount) == CKR_OK) && (ulSlotCount > 0)) {
+		fprintf(stdout, "slotCount = %d\n", ulSlotCount);
+		pSlotList = malloc(ulSlotCount * sizeof (CK_SLOT_ID));
+
+		if (pSlotList == NULL) {
+			fprintf(stderr, "System error: unable to allocate "
+			    "memory\n");
+			return (returnval);
+		}
+
+		/* Get the slot list for processing */
+		if (m_pkcs11Mngr.C_GetSlotList(0, pSlotList, &ulSlotCount) != CKR_OK) {
+			fprintf(stderr, "GetSlotList failed: unable to get "
+			    "slot count.\n");
+			if (pSlotList)
+				free(pSlotList);
+			return (returnval);
+		}
+	} else {
+		fprintf(stderr, "GetSlotList failed: unable to get slot "
+		    "list.\n");
+		return (returnval);
+	}
+
+	/* Find a slot capable of specified mechanism */
+	for (i = 0; i < ulSlotCount; i++) {
+		SlotID = pSlotList[i];
+
+		/* Check if this slot is capable of signing and
+		 * verifying with sv_mech. */
+
+		if (m_pkcs11Mngr.C_GetMechanismInfo(SlotID, sv_mech, &mech_info); != CKR_OK) {
+			continue;
+		}
+
+		if (!(mech_info.flags & CKF_SIGN &&
+			mech_info.flags & CKF_VERIFY)) {
+			continue;
+		}
+
+		/* Check if the slot is capable of key pair generation
+		 * with kpgen_mech. */
+
+		if (m_pkcs11Mngr.C_GetMechanismInfo(SlotID, kpgen_mech, &mech_info) != CKR_OK) {
+			continue;
+		}
+
+		if (!(mech_info.flags & CKF_GENERATE_KEY_PAIR)) {
+			continue;
+		}
+
+		/* If we get this far, this slot supports our mechanisms. */
+		returnval = B_TRUE;
+		*pSlotID = SlotID;
+		break;
+	}
+
+	if (pSlotList)
+		free(pSlotList);
+	return (returnval);
+}
+
+void
+pkcs11_sign_verify_demo(CK_SESSION_HANDLE hSession, CK_MECHANISM* smech, CK_OBJECT_HANDLE privatekey,
+	CK_OBJECT_HANDLE publickey, uchar_t* message, CK_ULONG messagelen, char* sign, CK_ULONG* slen,
+	CK_ATTRIBUTE* getattributes)
+{
+	TS_ASSERT(m_pkcs11Mngr.C_SignInit(hSession, smech, privatekey) == CKR_OK);
+
+	TS_ASSERT(m_pkcs11Mngr.C_Sign(hSession, (CK_BYTE_PTR)message, messagelen,
+	    (CK_BYTE_PTR)sign, slen) == CKR_OK);
+
+	fprintf(stdout, "Message was successfully signed with private key!\n");
+
+	TS_ASSERT(m_pkcs11Mngr.C_VerifyInit(hSession, smech, publickey) == CKR_OK);
+
+	TS_ASSERT(m_pkcs11Mngr.C_Verify(hSession, (CK_BYTE_PTR)message, messagelen,
+	    (CK_BYTE_PTR)sign, *slen) == CKR_OK);
+
+	fprintf(stdout, "Message was successfully verified with public key!\n");
+	
+	// Close session
+	(void) m_pkcs11Mngr.C_CloseSession(hSession);
+	
+	// Perform final cleanup
+	(void) m_pkcs11Mngr.C_Finalize(NULL_PTR);
+
+	for (i = 0; i < template_size; i++) {
+		if (getattributes[i].pValue != NULL)
+			free(getattributes[i].pValue);
+	}
+}
 
 /* Example signs and verifies a simple string, using a public/private
  * key pair. */
 void
-main(int argc, char **argv)
+kgsvDemo(int argc, char **argv)
 {
 	CK_MECHANISM genmech, smech;
 	CK_SESSION_HANDLE hSession;
@@ -165,11 +269,12 @@ main(int argc, char **argv)
 
 	TS_ASSERT(m_pkcs11Mngr.Init(PKCS11_DLL) == CKR_OK);
 
-	found_slot = GetMySlot(smech.mechanism, genmech.mechanism, &slotID);
+	found_slot = GetKGSVSlot(smech.mechanism, genmech.mechanism, &slotID);
 
 	if (!found_slot) {
 		fprintf(stderr, "No usable slot was found.\n");
-		goto exit_program;
+		(void) m_pkcs11Mngr.C_Finalize(NULL_PTR);
+		exit(error);
 	}
 
 	fprintf(stdout, "selected slot: %d\n", slotID);
@@ -208,7 +313,10 @@ main(int argc, char **argv)
 				int j;
 				for (j = 0; j < i; j++)
 					free(getattributes[j].pValue);
-				goto sign_cont;
+				pkcs11_sign_verify_demo(hSession, &smech, privatekey,
+					publickey, message, messagelen, sign, &slen,
+					getattributes);
+				return;
 			}
 		}
 
@@ -240,108 +348,8 @@ main(int argc, char **argv)
 		}
 	}
 	
-sign_cont:	
-	TS_ASSERT(m_pkcs11Mngr.C_SignInit(hSession, &smech, privatekey) == CKR_OK);
-
-	TS_ASSERT(m_pkcs11Mngr.C_Sign(hSession, (CK_BYTE_PTR)message, messagelen,
-	    (CK_BYTE_PTR)sign, &slen) == CKR_OK);
-
-	fprintf(stdout, "Message was successfully signed with private key!\n");
-
-	TS_ASSERT(m_pkcs11Mngr.C_VerifyInit(hSession, &smech, publickey) == CKR_OK);
-
-	TS_ASSERT(m_pkcs11Mngr.C_Verify(hSession, (CK_BYTE_PTR)message, messagelen,
-	    (CK_BYTE_PTR)sign, slen) == CKR_OK);
-
-	fprintf(stdout, "Message was successfully verified with public key!\n");
-
-exit_session:
-	(void) m_pkcs11Mngr.C_CloseSession(hSession);
-
-exit_program:
-	(void) m_pkcs11Mngr.C_Finalize(NULL_PTR);
-
-	for (i = 0; i < template_size; i++) {
-		if (getattributes[i].pValue != NULL)
-			free(getattributes[i].pValue);
-	}
-
-	exit(error);
-
+	pkcs11_sign_verify_demo(hSession, &smech, privatekey,
+		publickey, message, messagelen, sign, &slen,
+		getattributes);
+	return;
 }
-
-/* Find a slot capable of:
- * . signing and verifying with sv_mech
- * . generating a key pair with kpgen_mech
- * Returns B_TRUE when successful. */
-boolean_t GetMySlot(CK_MECHANISM_TYPE sv_mech, CK_MECHANISM_TYPE kpgen_mech,
-    CK_SLOT_ID_PTR pSlotID)
-{
-	CK_SLOT_ID_PTR pSlotList = NULL_PTR;
-	CK_SLOT_ID SlotID;
-	CK_ULONG ulSlotCount = 0;
-	CK_MECHANISM_INFO mech_info;
-	int i;
-	boolean_t returnval = B_FALSE;
-
-	if ((m_pkcs11Mngr.C_GetSlotList(0, NULL_PTR, &ulSlotCount) == CKR_OK) && (ulSlotCount > 0)) {
-		fprintf(stdout, "slotCount = %d\n", ulSlotCount);
-		pSlotList = malloc(ulSlotCount * sizeof (CK_SLOT_ID));
-
-		if (pSlotList == NULL) {
-			fprintf(stderr, "System error: unable to allocate "
-			    "memory\n");
-			return (returnval);
-		}
-
-		/* Get the slot list for processing */
-		if (m_pkcs11Mngr.C_GetSlotList(0, pSlotList, &ulSlotCount) != CKR_OK) {
-			fprintf(stderr, "GetSlotList failed: unable to get "
-			    "slot count.\n");
-			goto cleanup;
-		}
-	} else {
-		fprintf(stderr, "GetSlotList failed: unable to get slot "
-		    "list.\n");
-		return (returnval);
-	}
-
-	/* Find a slot capable of specified mechanism */
-	for (i = 0; i < ulSlotCount; i++) {
-		SlotID = pSlotList[i];
-
-		/* Check if this slot is capable of signing and
-		 * verifying with sv_mech. */
-
-		if (m_pkcs11Mngr.C_GetMechanismInfo(SlotID, sv_mech, &mech_info); != CKR_OK) {
-			continue;
-		}
-
-		if (!(mech_info.flags & CKF_SIGN &&
-			mech_info.flags & CKF_VERIFY)) {
-			continue;
-		}
-
-		/* Check if the slot is capable of key pair generation
-		 * with kpgen_mech. */
-
-		if (m_pkcs11Mngr.C_GetMechanismInfo(SlotID, kpgen_mech, &mech_info) != CKR_OK) {
-			continue;
-		}
-
-		if (!(mech_info.flags & CKF_GENERATE_KEY_PAIR)) {
-			continue;
-		}
-
-		/* If we get this far, this slot supports our mechanisms. */
-		returnval = B_TRUE;
-		*pSlotID = SlotID;
-		break;
-	}
-
-cleanup:
-	if (pSlotList)
-		free(pSlotList);
-	return (returnval);
-}
-
