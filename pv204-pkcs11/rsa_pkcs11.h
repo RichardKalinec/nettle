@@ -255,7 +255,7 @@ kgsvDemo(int argc, char **argv)
     /* Set private key. */
 	CK_ATTRIBUTE privatekey_template[] = {
 		{CKA_SIGN, &truevalue, sizeof (truevalue)},
-		{CKA_TOKEN, &falsevalue, sizeof (falsevalue)},
+		{CKA_TOKEN, &truevalue, sizeof (falsevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
 		{CKA_EXTRACTABLE, &truevalue, sizeof (truevalue)}
 	};
@@ -433,7 +433,7 @@ edDemo(int argc, char **argv)
     /* Set private key. */
 	CK_ATTRIBUTE privatekey_template[] = {
 		{CKA_DECRYPT, &truevalue, sizeof (truevalue)},
-		{CKA_TOKEN, &falsevalue, sizeof (falsevalue)},
+		{CKA_TOKEN, &truevalue, sizeof (falsevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
 		{CKA_EXTRACTABLE, &truevalue, sizeof (truevalue)}
 	};
