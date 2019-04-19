@@ -163,7 +163,7 @@ kgsvDemo(int argc, char **argv)
 		{CKA_SIGN, &truevalue, sizeof (truevalue)},
 		{CKA_TOKEN, &truevalue, sizeof (truevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
-		{CKA_EXTRACTABLE, &truevalue, sizeof (truevalue)}
+		{CKA_EXTRACTABLE, &falsevalue, sizeof (truevalue)}
 	};
 
     /* Create sample message. */
@@ -343,7 +343,7 @@ edDemo(int argc, char **argv)
 		{CKA_DECRYPT, &truevalue, sizeof (truevalue)},
 		{CKA_TOKEN, &truevalue, sizeof (trueevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
-		{CKA_EXTRACTABLE, &truevalue, sizeof (truevalue)}
+		{CKA_EXTRACTABLE, &falsevalue, sizeof (truevalue)}
 	};
 
     /* Create sample message. */

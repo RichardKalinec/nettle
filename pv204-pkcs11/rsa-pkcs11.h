@@ -63,13 +63,10 @@ CPKCS11Stub m_pkcs11Mngr;
 /* Define key template */
 static CK_BBOOL truevalue = TRUE;
 static CK_BBOOL falsevalue = FALSE;
-static CK_ULONG modulusbits = 1024;
-static CK_BYTE public_exponent[] = {3};
+static CK_ULONG modulusbits = 2048;
+static CK_BYTE public_exponent[] = {65537};
 
 
 int
-getTokenSession(CK_SLOT_ID *pSlotID, CK_SLOT_INFO *pSlotInfo, CK_TOKEN_INFO *pTokenInfo);
-
-boolean_t
-GetMySlot(CK_MECHANISM_TYPE op_mech, CK_MECHANISM_TYPE kpgen_mech,
-    CK_SLOT_ID_PTR pSlotID, int operations);
+getTokenSession(const char* tokenLabel, CK_SLOT_ID *pSlotID, CK_SLOT_INFO *pSlotInfo, CK_TOKEN_INFO *pTokenInfo,
+	CK_MECHANISM_TYPE op_mech, CK_MECHANISM_TYPE kpgen_mech, int operations);
