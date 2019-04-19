@@ -1,4 +1,6 @@
-/* Taken by Filip Gontko from  and subsequently modified to suit our needs.
+/* Code was inspired by https://docs.oracle.com/cd/E19253-01/816-4863/chapter2-15/index.html
+   and by example code from PV204. It was subsequently modified by Filip Gontko
+   to suit our needs.
    Originally containing only functionality for keypair generation, signing and
    verification, Richard Kalinec added functions for encryption and decryption.
    It contains only functions for RSA operations.
@@ -252,7 +254,7 @@ kgsvDemo(int argc, char **argv)
     /* Set private key. */
 	CK_ATTRIBUTE privatekey_template[] = {
 		{CKA_SIGN, &truevalue, sizeof (truevalue)},
-		{CKA_TOKEN, &falsevalue, sizeof (falsevalue)},
+		{CKA_TOKEN, &truevalue, sizeof (truevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
 		{CKA_EXTRACTABLE, &truevalue, sizeof (truevalue)}
 	};
@@ -430,7 +432,7 @@ edDemo(int argc, char **argv)
     /* Set private key. */
 	CK_ATTRIBUTE privatekey_template[] = {
 		{CKA_DECRYPT, &truevalue, sizeof (truevalue)},
-		{CKA_TOKEN, &falsevalue, sizeof (falsevalue)},
+		{CKA_TOKEN, &truevalue, sizeof (trueevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
 		{CKA_EXTRACTABLE, &truevalue, sizeof (truevalue)}
 	};
