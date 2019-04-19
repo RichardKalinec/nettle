@@ -9,7 +9,6 @@
 #include "stdafx.h"
 #include <list>
 #include <cassert>
-#include <iostream>
 #include <tic.h>
 
 #include "pkcs11stub.h"
@@ -34,13 +33,9 @@ using namespace std;
 #define TESTING_TOKEN_LABEL		 "pv204"
 typedef unsigned long ULONG;
 #define TEST_PIN    "1234"
-//typedef unsigned int DWORD;
+
 typedef char TCHAR;
 typedef void* CK_VOID_PTR;
-
-#define TS_ASSERT(x) assert(x)
-#define TS_FAIL(x) { cout << x; assert(false); }
-//#define _T(x) x
 
 
 typedef struct _ITEM_DATA_PKCS11READER {
@@ -74,12 +69,12 @@ int getTokenSession(CK_SLOT_ID *pSlotID, CK_SLOT_INFO *pSlotInfo, CK_TOKEN_INFO 
 		ITEM_DATA_PKCS11READER readerInfo;
 		m_pkcs11Mngr.Init(PKCS11_DLL);
 
-		TS_ASSERT(m_pkcs11Mngr.C_GetSlotList(FALSE, pkcs11Slots, &pkcs11SlotsCount) == CKR_OK);
-		TS_ASSERT(pkcs11SlotsCount > 0);
+		assert(m_pkcs11Mngr.C_GetSlotList(FALSE, pkcs11Slots, &pkcs11SlotsCount) == CKR_OK);
+		assert(pkcs11SlotsCount > 0);
 		bool bTestTokenFound = FALSE;
 		for (DWORD i = 0; i < pkcs11SlotsCount; i++) {
-			TS_ASSERT(m_pkcs11Mngr.C_GetSlotInfo(pkcs11Slots[i], pSlotInfo) == CKR_OK);
-			TS_ASSERT(m_pkcs11Mngr.C_GetTokenInfo(pkcs11Slots[i], pTokenInfo) == CKR_OK);
+			assert(m_pkcs11Mngr.C_GetSlotInfo(pkcs11Slots[i], pSlotInfo) == CKR_OK);
+			assert(m_pkcs11Mngr.C_GetTokenInfo(pkcs11Slots[i], pTokenInfo) == CKR_OK);
 
 			// IF MORE THAN 3 SPACES DETECTED, THAN CUT READER NAME
 			TCHAR *pos = 0;
@@ -204,16 +199,16 @@ pkcs11_sign_verify_demo(CK_SESSION_HANDLE hSession, CK_MECHANISM* smech, CK_OBJE
 	CK_OBJECT_HANDLE publickey, uchar_t* message, CK_ULONG messagelen, char* sign, CK_ULONG* slen,
 	CK_ATTRIBUTE* getattributes)
 {
-	TS_ASSERT(m_pkcs11Mngr.C_SignInit(hSession, smech, privatekey) == CKR_OK);
+	assert(m_pkcs11Mngr.C_SignInit(hSession, smech, privatekey) == CKR_OK);
 
-	TS_ASSERT(m_pkcs11Mngr.C_Sign(hSession, (CK_BYTE_PTR)message, messagelen,
+	assert(m_pkcs11Mngr.C_Sign(hSession, (CK_BYTE_PTR)message, messagelen,
 	    (CK_BYTE_PTR)sign, slen) == CKR_OK);
 
 	fprintf(stdout, "Message was successfully signed with private key!\n");
 
-	TS_ASSERT(m_pkcs11Mngr.C_VerifyInit(hSession, smech, publickey) == CKR_OK);
+	assert(m_pkcs11Mngr.C_VerifyInit(hSession, smech, publickey) == CKR_OK);
 
-	TS_ASSERT(m_pkcs11Mngr.C_Verify(hSession, (CK_BYTE_PTR)message, messagelen,
+	assert(m_pkcs11Mngr.C_Verify(hSession, (CK_BYTE_PTR)message, messagelen,
 	    (CK_BYTE_PTR)sign, *slen) == CKR_OK);
 
 	fprintf(stdout, "Message was successfully verified with public key!\n");
@@ -286,7 +281,7 @@ kgsvDemo(int argc, char **argv)
 	smech.pParameter = NULL_PTR;
 	smech.ulParameterLen = 0;
 
-	TS_ASSERT(m_pkcs11Mngr.Init(PKCS11_DLL) == CKR_OK);
+	assert(m_pkcs11Mngr.Init(PKCS11_DLL) == CKR_OK);
 
 	found_slot = GetMySlot(smech.mechanism, genmech.mechanism, &slotID, 1);
 
@@ -299,16 +294,16 @@ kgsvDemo(int argc, char **argv)
 	fprintf(stdout, "selected slot: %d\n", slotID);
 
 	/* Open a session on the slot found */
-	TS_ASSERT(m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
+	assert(m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
 	    &hSession) == CKR_OK);
 
 	// Login user
-	TS_ASSERT(m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN)) == CKR_OK);
+	assert(m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN)) == CKR_OK);
 
 	fprintf(stdout, "Generating keypair....\n");
 
 	/* Generate Key pair for signing/verifying */
-	TS_ASSERT(m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
+	assert(m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
 	    (sizeof (publickey_template) / sizeof (CK_ATTRIBUTE)),
 	    privatekey_template,
 	    (sizeof (privatekey_template) / sizeof (CK_ATTRIBUTE)),
@@ -378,21 +373,21 @@ pkcs11_encrypt_decrypt_demo(CK_SESSION_HANDLE hSession, CK_MECHANISM* emech, CK_
 	CK_OBJECT_HANDLE publickey, uchar_t* message, CK_ULONG messagelen, char* ciphertext, CK_ULONG* clen,
 	CK_ATTRIBUTE* getattributes)
 {
-	TS_ASSERT(m_pkcs11Mngr.C_EncryptInit(hSession, emech, publickey) == CKR_OK);
+	assert(m_pkcs11Mngr.C_EncryptInit(hSession, emech, publickey) == CKR_OK);
 
-	TS_ASSERT(m_pkcs11Mngr.C_Encrypt(hSession, (CK_BYTE_PTR)message, messagelen,
+	assert(m_pkcs11Mngr.C_Encrypt(hSession, (CK_BYTE_PTR)message, messagelen,
 	    (CK_BYTE_PTR)ciphertext, clen) == CKR_OK);
 
 	fprintf(stdout, "Message was successfully encrypted with public key!\n");
 
-	TS_ASSERT(m_pkcs11Mngr.C_DecryptInit(hSession, emech, privatekey) == CKR_OK);
+	assert(m_pkcs11Mngr.C_DecryptInit(hSession, emech, privatekey) == CKR_OK);
 
 	decrypted[BUFFERSIZ];
 	declen = BUFFERSIZ;
-	TS_ASSERT(m_pkcs11Mngr.C_Decrypt(hSession, (CK_BYTE_PTR)ciphertext, *clen,
+	assert(m_pkcs11Mngr.C_Decrypt(hSession, (CK_BYTE_PTR)ciphertext, *clen,
 	    (CK_BYTE_PTR)decrypted, declen) == CKR_OK);
 	    
-	TS_ASSERT(strcmp(message, decrypted) == 0);
+	assert(strcmp(message, decrypted) == 0);
 
 	fprintf(stdout, "Message was successfully decrypted with private key!\n");
 	
@@ -464,7 +459,7 @@ edDemo(int argc, char **argv)
 	emech.pParameter = NULL_PTR;
 	emech.ulParameterLen = 0;
 
-	TS_ASSERT(m_pkcs11Mngr.Init(PKCS11_DLL) == CKR_OK);
+	assert(m_pkcs11Mngr.Init(PKCS11_DLL) == CKR_OK);
 
 	found_slot = GetMySlot(smech.mechanism, genmech.mechanism, &slotID, 2);
 
@@ -477,16 +472,16 @@ edDemo(int argc, char **argv)
 	fprintf(stdout, "selected slot: %d\n", slotID);
 
 	/* Open a session on the slot found */
-	TS_ASSERT(m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
+	assert(m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
 	    &hSession) == CKR_OK);
 
 	// Login user
-	TS_ASSERT(m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN)) == CKR_OK);
+	assert(m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN)) == CKR_OK);
 
 	fprintf(stdout, "Generating keypair....\n");
 
 	/* Generate Key pair for encryption/decryption */
-	TS_ASSERT(m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
+	assert(m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
 	    (sizeof (publickey_template) / sizeof (CK_ATTRIBUTE)),
 	    privatekey_template,
 	    (sizeof (privatekey_template) / sizeof (CK_ATTRIBUTE)),
