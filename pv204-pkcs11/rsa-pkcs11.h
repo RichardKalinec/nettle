@@ -459,7 +459,7 @@ edDemo(int argc, char **argv)
 	genmech.pParameter = NULL_PTR;
 	genmech.ulParameterLen = 0;
 
-	/* Set up the signing mechanism */
+	/* Set up the encryption mechanism */
 	emech.mechanism = CKM_RSA_PKCS;
 	emech.pParameter = NULL_PTR;
 	emech.ulParameterLen = 0;
@@ -485,7 +485,7 @@ edDemo(int argc, char **argv)
 
 	fprintf(stdout, "Generating keypair....\n");
 
-	/* Generate Key pair for signing/verifying */
+	/* Generate Key pair for encryption/decryption */
 	TS_ASSERT(m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
 	    (sizeof (publickey_template) / sizeof (CK_ATTRIBUTE)),
 	    privatekey_template,
@@ -497,7 +497,7 @@ edDemo(int argc, char **argv)
 
 	if (m_pkcs11Mngr.C_GetAttributeValue(hSession, publickey, getattributes,
 	    template_size) != CKR_OK) {
-		/* not fatal, we can still decrypt/encrypt if this failed */
+		/* not fatal, we can still encrypt/decrypt if this failed */
 		fprintf(stderr, "C_GetAttributeValue: rv = 0x%.8X\n", rv);
 		error = 1;
 	} else {
@@ -520,7 +520,7 @@ edDemo(int argc, char **argv)
 		/* Call again to get actual attributes */
 		if (m_pkcs11Mngr.C_GetAttributeValue(hSession, publickey, getattributes,
 	    template_size) != CKR_OK) {
-			/* not fatal, we can still sign/verify if failed */
+			/* not fatal, we can still encrypt/decrypt if failed */
 			fprintf(stderr,
 			    "C_GetAttributeValue: rv = 0x%.8X\n", rv);
 			error = 1;
