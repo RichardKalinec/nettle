@@ -31,15 +31,17 @@ getTokenSession(const char* tokenLabel, CK_SLOT_ID *pSlotID, CK_SLOT_INFO *pSlot
 	ITEM_DATA_PKCS11READER readerInfo;
 	m_pkcs11Mngr.Init(PKCS11_DLL);
 
-	assert(m_pkcs11Mngr.C_GetSlotList(FALSE, pkcs11Slots, &pkcs11SlotsCount) == CKR_OK);
-	assert(pkcs11SlotsCount > 0);
+	m_pkcs11Mngr.C_GetSlotList(FALSE, pkcs11Slots, &pkcs11SlotsCount);
+	if (pkcs11SlotsCount > 0) {
+		return 0;
+	}
 		
 	CK_MECHANISM_INFO mech_info;
 	bool bTestTokenFound = FALSE;
 	bool bTestTokenUsable = FALSE;	
 	for (DWORD i = 0; i < pkcs11SlotsCount; i++) {
-		assert(m_pkcs11Mngr.C_GetSlotInfo(pkcs11Slots[i], pSlotInfo) == CKR_OK);
-		assert(m_pkcs11Mngr.C_GetTokenInfo(pkcs11Slots[i], pTokenInfo) == CKR_OK);
+		m_pkcs11Mngr.C_GetSlotInfo(pkcs11Slots[i], pSlotInfo);
+		m_pkcs11Mngr.C_GetTokenInfo(pkcs11Slots[i], pTokenInfo);
 
 		// IF MORE THAN 3 SPACES DETECTED, THAN CUT READER NAME
 		TCHAR *pos = 0;
@@ -54,9 +56,7 @@ getTokenSession(const char* tokenLabel, CK_SLOT_ID *pSlotID, CK_SLOT_INFO *pSlot
 			/* Check if this slot is capable of either signing and
 			 * verifying or encrypting and decrypting with sv_mech.
 			 */
-			if (m_pkcs11Mngr.C_GetMechanismInfo(pkcs11Slots[i], op_mech, &mech_info); != CKR_OK) {
-				continue;
-			}
+			m_pkcs11Mngr.C_GetMechanismInfo(pkcs11Slots[i], op_mech, &mech_info);
 	
 			if (operations == 1)
 			{
@@ -77,9 +77,7 @@ getTokenSession(const char* tokenLabel, CK_SLOT_ID *pSlotID, CK_SLOT_INFO *pSlot
 			/* Check if the slot is capable of key pair generation
 			 * with kpgen_mech. */
 	
-			if (m_pkcs11Mngr.C_GetMechanismInfo(pkcs11Slots[i], kpgen_mech, &mech_info) != CKR_OK) {
-				continue;
-			}
+			m_pkcs11Mngr.C_GetMechanismInfo(pkcs11Slots[i], kpgen_mech, &mech_info);
 	
 			if (!(mech_info.flags & CKF_GENERATE_KEY_PAIR)) {
 				continue;
@@ -109,17 +107,17 @@ pkcs11_sign_verify_demo(CK_SESSION_HANDLE hSession, CK_MECHANISM* smech, CK_OBJE
 	CK_OBJECT_HANDLE publickey, uchar_t* message, CK_ULONG messagelen, char* sign, CK_ULONG* slen,
 	CK_ATTRIBUTE* getattributes)
 {
-	assert(m_pkcs11Mngr.C_SignInit(hSession, smech, privatekey) == CKR_OK);
+	m_pkcs11Mngr.C_SignInit(hSession, smech, privatekey);
 
-	assert(m_pkcs11Mngr.C_Sign(hSession, (CK_BYTE_PTR)message, messagelen,
-	    (CK_BYTE_PTR)sign, slen) == CKR_OK);
+	m_pkcs11Mngr.C_Sign(hSession, (CK_BYTE_PTR)message, messagelen,
+	    (CK_BYTE_PTR)sign, slen);
 
 	fprintf(stdout, "Message was successfully signed with private key!\n");
 
-	assert(m_pkcs11Mngr.C_VerifyInit(hSession, smech, publickey) == CKR_OK);
+	m_pkcs11Mngr.C_VerifyInit(hSession, smech, publickey);
 
-	assert(m_pkcs11Mngr.C_Verify(hSession, (CK_BYTE_PTR)message, messagelen,
-	    (CK_BYTE_PTR)sign, *slen) == CKR_OK);
+	m_pkcs11Mngr.C_Verify(hSession, (CK_BYTE_PTR)message, messagelen,
+	    (CK_BYTE_PTR)sign, *slen);
 
 	fprintf(stdout, "Message was successfully verified with public key!\n");
 	
@@ -163,7 +161,7 @@ kgsvDemo(int argc, char **argv)
 		{CKA_SIGN, &truevalue, sizeof (truevalue)},
 		{CKA_TOKEN, &truevalue, sizeof (truevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
-		{CKA_EXTRACTABLE, &falsevalue, sizeof (truevalue)}
+		{CKA_EXTRACTABLE, &falsevalue, sizeof (falsevalue)}
 	};
 
     /* Create sample message. */
@@ -193,7 +191,7 @@ kgsvDemo(int argc, char **argv)
 	smech.pParameter = NULL_PTR;
 	smech.ulParameterLen = 0;
 
-	assert(m_pkcs11Mngr.Init(PKCS11_DLL) == CKR_OK);
+	m_pkcs11Mngr.Init(PKCS11_DLL);
 
 	found_slot = getTokenSession(TEST_TOKEN_LABEL, &slotID, &slotInfo, &tokenInfo, smech.mechanism, genmech.mechanism, 1);
 
@@ -206,20 +204,20 @@ kgsvDemo(int argc, char **argv)
 	fprintf(stdout, "selected slot: %d\n", slotID);
 
 	/* Open a session on the slot found */
-	assert(m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
-	    &hSession) == CKR_OK);
+	m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
+	    &hSession);
 
 	// Login user
-	assert(m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN)) == CKR_OK);
+	m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN));
 
 	fprintf(stdout, "Generating keypair....\n");
 
 	/* Generate Key pair for signing/verifying */
-	assert(m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
+	m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
 	    (sizeof (publickey_template) / sizeof (CK_ATTRIBUTE)),
 	    privatekey_template,
 	    (sizeof (privatekey_template) / sizeof (CK_ATTRIBUTE)),
-	    &publickey, &privatekey) == CKR_OK);
+	    &publickey, &privatekey);
 
 	/* Display the publickey. */
 	template_size = sizeof (getattributes) / sizeof (CK_ATTRIBUTE);
@@ -285,24 +283,23 @@ pkcs11_encrypt_decrypt_demo(CK_SESSION_HANDLE hSession, CK_MECHANISM* emech, CK_
 	CK_OBJECT_HANDLE publickey, uchar_t* message, CK_ULONG messagelen, char* ciphertext, CK_ULONG* clen,
 	CK_ATTRIBUTE* getattributes)
 {
-	assert(m_pkcs11Mngr.C_EncryptInit(hSession, emech, publickey) == CKR_OK);
+	m_pkcs11Mngr.C_EncryptInit(hSession, emech, publickey);
 
-	assert(m_pkcs11Mngr.C_Encrypt(hSession, (CK_BYTE_PTR)message, messagelen,
-	    (CK_BYTE_PTR)ciphertext, clen) == CKR_OK);
+	m_pkcs11Mngr.C_Encrypt(hSession, (CK_BYTE_PTR)message, messagelen,
+	    (CK_BYTE_PTR)ciphertext, clen);
 
 	fprintf(stdout, "Message was successfully encrypted with public key!\n");
 
-	assert(m_pkcs11Mngr.C_DecryptInit(hSession, emech, privatekey) == CKR_OK);
+	m_pkcs11Mngr.C_DecryptInit(hSession, emech, privatekey);
 
 	decrypted[BUFFERSIZ];
 	declen = BUFFERSIZ;
-	assert(m_pkcs11Mngr.C_Decrypt(hSession, (CK_BYTE_PTR)ciphertext, *clen,
-	    (CK_BYTE_PTR)decrypted, declen) == CKR_OK);
+	m_pkcs11Mngr.C_Decrypt(hSession, (CK_BYTE_PTR)ciphertext, *clen,
+	    (CK_BYTE_PTR)decrypted, declen);
 	    
-	assert(strcmp(message, decrypted) == 0);
-
-	fprintf(stdout, "Message was successfully decrypted with private key!\n");
-	
+	if (strcmp(message, decrypted) == 0) {
+		fprintf(stdout, "Message was successfully decrypted with private key!\n");
+	}
 	// Close session
 	(void) m_pkcs11Mngr.C_CloseSession(hSession);
 	
@@ -341,9 +338,9 @@ edDemo(int argc, char **argv)
     /* Set private key. */
 	CK_ATTRIBUTE privatekey_template[] = {
 		{CKA_DECRYPT, &truevalue, sizeof (truevalue)},
-		{CKA_TOKEN, &truevalue, sizeof (trueevalue)},
+		{CKA_TOKEN, &truevalue, sizeof (truevalue)},
 		{CKA_SENSITIVE, &truevalue, sizeof (truevalue)},
-		{CKA_EXTRACTABLE, &falsevalue, sizeof (truevalue)}
+		{CKA_EXTRACTABLE, &falsevalue, sizeof (falsevalue)}
 	};
 
     /* Create sample message. */
@@ -384,20 +381,20 @@ edDemo(int argc, char **argv)
 	fprintf(stdout, "selected slot: %d\n", slotID);
 
 	/* Open a session on the slot found */
-	assert(m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
-	    &hSession) == CKR_OK);
+	m_pkcs11Mngr.C_OpenSession(slotID, CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR,
+	    &hSession);
 
 	// Login user
-	assert(m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN)) == CKR_OK);
+	m_pkcs11Mngr.C_Login(hSession, CKU_USER, (CK_CHAR *) TEST_PIN, strlen(TEST_PIN));
 
 	fprintf(stdout, "Generating keypair....\n");
 
 	/* Generate Key pair for encryption/decryption */
-	assert(m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
+	m_pkcs11Mngr.C_GenerateKeyPair(hSession, &genmech, publickey_template,
 	    (sizeof (publickey_template) / sizeof (CK_ATTRIBUTE)),
 	    privatekey_template,
 	    (sizeof (privatekey_template) / sizeof (CK_ATTRIBUTE)),
-	    &publickey, &privatekey) == CKR_OK);
+	    &publickey, &privatekey);
 
 	/* Display the publickey. */
 	template_size = sizeof (getattributes) / sizeof (CK_ATTRIBUTE);
